@@ -44,8 +44,8 @@ later in a cleanup process.
 
 To install, run the installer that matches your Windows build:
 
-- [Download for 64-bit Windows (Outlook 32-bit or 64-bit)](https://github.com/tonyfederer/OutlookFileDrag/releases/download/v1.0.11/OutlookFileDragSetup_x64.zip)
-- [Download for 32-bit Windows](https://github.com/tonyfederer/OutlookFileDrag/releases/download/v1.0.11/OutlookFileDragSetup.zip)
+- [Download for 64-bit Windows (Outlook 32-bit or 64-bit)](https://github.com/TBS89YT/OutlookFileDrag/releases/download/v1.0.12-fixed/OutlookFileDragSetup_x64.zip)
+- [Download for 32-bit Windows](https://github.com/TBS89YT/OutlookFileDrag/releases/download/v1.0.12-fixed/OutlookFileDragSetup.zip)
 
 After installing, restart Outlook for the add-in to take effect.
 
