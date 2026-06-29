@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 
@@ -42,6 +42,11 @@ namespace OutlookFileDrag
         [DllImport("ole32.dll")]
         public static extern int DoDragDrop(NativeMethods.IDataObject pDataObj, IntPtr pDropSource, uint dwOKEffects, out uint pdwEffect);
 
+        // Safe overload: all parameters as raw IntPtr for the fallback path.
+        // This avoids any CLR COM marshaling which can crash on newer Outlook builds.
+        [DllImport("ole32.dll", EntryPoint = "DoDragDrop")]
+        public static extern int DoDragDropRaw(IntPtr pDataObj, IntPtr pDropSource, uint dwOKEffects, out uint pdwEffect);
+
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         public static extern IntPtr GlobalLock(IntPtr handle);
 
@@ -49,7 +54,7 @@ namespace OutlookFileDrag
         public static extern bool GlobalUnlock(IntPtr handle);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-        public static extern int GlobalSize(IntPtr handle);
+        public static extern IntPtr GlobalSize(IntPtr handle);
 
         [DllImport("ole32.dll", PreserveSig = false)]
         public static extern ILockBytes CreateILockBytesOnHGlobal(IntPtr hGlobal, bool fDeleteOnRelease);
@@ -191,18 +196,23 @@ namespace OutlookFileDrag
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        public sealed class DROPFILES
+        public struct DROPFILES
         {
             public int pFiles;
             public int X;
             public int Y;
+            [MarshalAs(UnmanagedType.Bool)]
             public bool fNC;
+            [MarshalAs(UnmanagedType.Bool)]
             public bool fWide;
         }
     
-        [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.I4)]
-        public delegate int DragDropDelegate(NativeMethods.IDataObject pDataObj, IntPtr pDropSource, uint dwOKEffects, out uint pdwEffect);
+        // CRITICAL FIX: All parameters as IntPtr to prevent CLR from auto-marshaling
+        // COM interfaces during the EasyHook trampoline. The CLR's automatic
+        // QueryInterface/AddRef on Outlook 2606's internal COM objects causes
+        // Access Violations. Manual marshaling is done inside the hook method.
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        public delegate int DragDropDelegate(IntPtr pDataObj, IntPtr pDropSource, uint dwOKEffects, IntPtr pdwEffect);
 
     }
 }

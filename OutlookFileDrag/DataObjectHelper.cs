@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -37,7 +37,8 @@ namespace OutlookFileDrag
         {
             //Create DROPFILES structure
             NativeMethods.DROPFILES dropFiles = new NativeMethods.DROPFILES();
-            dropFiles.pFiles = Marshal.SizeOf(dropFiles);
+            int dropFilesSize = Marshal.SizeOf(typeof(NativeMethods.DROPFILES));
+            dropFiles.pFiles = dropFilesSize;
             dropFiles.fWide = true;     //Unicode
 
             //Get null-separated list of filenames terminated with double null
@@ -45,14 +46,14 @@ namespace OutlookFileDrag
             byte[] filenameBytes = System.Text.Encoding.Unicode.GetBytes(filenameList);
 
             //Allocate global memory and get pointer
-            int dataLength = Marshal.SizeOf(dropFiles) + filenameBytes.Length;
+            int dataLength = dropFilesSize + filenameBytes.Length;
             IntPtr ptrDropFiles = Marshal.AllocHGlobal(dataLength);
 
             //Copy DROPFILES structure to global memory.
-            Marshal.StructureToPtr(dropFiles, ptrDropFiles, true);
+            Marshal.StructureToPtr(dropFiles, ptrDropFiles, false);
 
             //Copy filenames to memory after DROPFILES structure
-            IntPtr ptrFiles = IntPtr.Add(ptrDropFiles, Marshal.SizeOf(dropFiles));
+            IntPtr ptrFiles = IntPtr.Add(ptrDropFiles, dropFilesSize);
             Marshal.Copy(filenameBytes, 0, ptrFiles, filenameBytes.Length);
             
             //Load structure into medium
@@ -379,20 +380,21 @@ namespace OutlookFileDrag
             IntPtr source = NativeMethods.GlobalLock(handle);
 
             if (source == IntPtr.Zero)
-                throw new Exception(string.Format("Unable to lock hglobal {0}", source.ToString()));
+                throw new Exception(string.Format("Unable to lock hglobal {0}", handle.ToString()));
             try
             {
-                //Get size of HGlobal
-                int length = NativeMethods.GlobalSize(handle);
+                //Get size of HGlobal (IntPtr for 64-bit safety)
+                long length = NativeMethods.GlobalSize(handle).ToInt64();
 
                 //Copy HGlobal into managed stream in chunks
                 byte[] buffer = new byte[4096];     //4 KB buffer
                 int bytesToCopy;
-                for(int offset = 0; offset < length; offset += buffer.Length)
+                for(long offset = 0; offset < length; offset += buffer.Length)
                 {
                     //Copy buffer length or remaining length, whichever is smaller
-                    bytesToCopy = Math.Min(buffer.Length, length - offset);
-                    Marshal.Copy(source, buffer, 0, bytesToCopy);
+                    bytesToCopy = (int)Math.Min(buffer.Length, length - offset);
+                    // Use IntPtr.Add to advance the source pointer by the current offset
+                    Marshal.Copy(IntPtr.Add(source, (int)offset), buffer, 0, bytesToCopy);
                     stream.Write(buffer, 0, bytesToCopy);
                 }
             }

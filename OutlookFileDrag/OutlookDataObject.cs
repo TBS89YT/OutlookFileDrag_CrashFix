@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -292,17 +292,27 @@ namespace OutlookFileDrag
                 else
                 {
                     //For all other interfaces, use interface on original object
-                    IntPtr pUnk = Marshal.GetIUnknownForObject(this.innerData);
-                    int retVal = Marshal.QueryInterface(pUnk, ref iid, out ppv);
-                    if (retVal == NativeMethods.S_OK)
+                    IntPtr pUnk = IntPtr.Zero;
+                    try
                     {
-                        log.DebugFormat("Interface handled by inner object");
-                        return CustomQueryInterfaceResult.Handled;
+                        pUnk = Marshal.GetIUnknownForObject(this.innerData);
+                        int retVal = Marshal.QueryInterface(pUnk, ref iid, out ppv);
+                        if (retVal == NativeMethods.S_OK)
+                        {
+                            log.DebugFormat("Interface handled by inner object");
+                            return CustomQueryInterfaceResult.Handled;
+                        }
+                        else
+                        {
+                            log.DebugFormat("Interface not handled by inner object");
+                            return CustomQueryInterfaceResult.Failed;
+                        }
                     }
-                    else
+                    finally
                     {
-                        log.DebugFormat("Interface not handled by inner object");
-                        return CustomQueryInterfaceResult.Failed;
+                        // Always release the IUnknown pointer to prevent COM reference leaks
+                        if (pUnk != IntPtr.Zero)
+                            Marshal.Release(pUnk);
                     }
                 }
 
