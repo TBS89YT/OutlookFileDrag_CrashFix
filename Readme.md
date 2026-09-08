@@ -97,7 +97,7 @@ You can view the source code, report issues, and contribute on [Github](https://
 
 If you find this project useful, please consider donating.  Your donations are appreciated. =)
 
-[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=BSAGCF5VAJLN2](https://www.paypal.com/donate/?hosted_button_id=RZ6G6F8N9KHTC))
+[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=RZ6G6F8N9KHTC)
 
 ## Version History
 
