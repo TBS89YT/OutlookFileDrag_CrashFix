@@ -1,4 +1,11 @@
-﻿# Outlook File Drag
+# Donate
+
+If you find this project useful, please consider donating.  Your donations are appreciated. =)
+
+[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=RZ6G6F8N9KHTC)
+
+
+# Outlook File Drag
 
 *Drag and drop Outlook items as files into any application*
 
@@ -92,12 +99,6 @@ Outlook File Drag uses these open source projects:
 ## Feedback/Contribute
 
 You can view the source code, report issues, and contribute on [Github](https://github.com/tonyfederer/OutlookFileDrag).
-
-## Donate
-
-If you find this project useful, please consider donating.  Your donations are appreciated. =)
-
-[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=RZ6G6F8N9KHTC)
 
 ## Version History
 
