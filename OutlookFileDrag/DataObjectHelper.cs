@@ -72,7 +72,7 @@ namespace OutlookFileDrag
                     NativeMethods.GlobalFree(hGlobal);
             }
 
-//Load structure into medium
+            // Load structure into medium
             medium.unionmember = hGlobal;
             medium.tymed = TYMED.TYMED_HGLOBAL;
             medium.pUnkForRelease = null;        // Caller releases medium via ReleaseStgMedium
