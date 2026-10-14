@@ -14,7 +14,7 @@ Compile the VSTO add-in in Release configuration. When building for local tests 
 
 ## Continuous integration
 
-The GitHub Actions workflow runs the managed C# compiler target (`CoreCompile`) on a Windows runner. It does not complete the VSTO manifest generation, build MSIs, test Outlook integration, or sign deployment manifests. A passing check confirms managed-source compilation only.
+The GitHub Actions workflow runs the managed compilation target (`Compile`) on a Windows runner. It does not complete the VSTO manifest generation, build MSIs, test Outlook integration, or sign deployment manifests. A passing check confirms managed-source compilation only.
 
 Before publishing an MSI:
 
