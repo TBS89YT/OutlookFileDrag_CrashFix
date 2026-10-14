@@ -33,7 +33,7 @@ namespace OutlookFileDrag
             foreach(DirectoryInfo subfolder in dirInfo.GetDirectories())
             {
                 //If folder was created before expiration window, delete it
-                if (subfolder.CreationTime < DateTime.Now.AddMinutes(tempFileExpiration))
+                if (subfolder.CreationTimeUtc < DateTime.UtcNow.AddMinutes(-tempFileExpiration))
                     try
                     {
                         log.InfoFormat("Deleting temp folder: {0}", subfolder.FullName);

@@ -38,6 +38,13 @@ namespace OutlookFileDrag
         public const int E_UNEXPECTED = unchecked((int)0x8000FFFF);
 
         public const int MAX_PATH = 260;
+        public const uint GMEM_MOVEABLE = 0x0002;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr GlobalFree(IntPtr handle);
 
         [DllImport("ole32.dll")]
         public static extern int DoDragDrop(NativeMethods.IDataObject pDataObj, IntPtr pDropSource, uint dwOKEffects, out uint pdwEffect);

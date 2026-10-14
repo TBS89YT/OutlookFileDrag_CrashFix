@@ -106,7 +106,7 @@ namespace OutlookFileDrag
                     return NativeMethods.DATA_S_SAMEFORMATETC;
                 }
                 else
-                    return innerData.GetCanonicalFormatEtc(formatIn, out formatOut);
+                    return innerData.GetCanonicalFormatEtc(ref formatIn, out formatOut);
             }
             catch (Exception ex)
             {
@@ -156,7 +156,7 @@ namespace OutlookFileDrag
                 }
                 else
                 {
-                    int result =  innerData.GetData(format, out medium);
+                    int result =  innerData.GetData(ref format, out medium);
                     log.DebugFormat("Result: {0}", result);
                     return result;
                 }
@@ -204,7 +204,7 @@ namespace OutlookFileDrag
                 }
                 else
                 {
-                    int result = innerData.QueryGetData(format);
+                    int result = innerData.QueryGetData(ref format);
                     log.DebugFormat("Result: {0}", result);
                     return result;
                 }
@@ -223,7 +223,7 @@ namespace OutlookFileDrag
             {
                 log.DebugFormat("IDataObject.SetData called -- cfFormat {0} dwAspect {1} lindex {2} ptd {3} tymed {4}", formatIn.cfFormat, formatIn.dwAspect, formatIn.lindex, formatIn.ptd, formatIn.tymed);
                 log.DebugFormat("Format name: {0}", System.Windows.Forms.DataFormats.GetFormat((ushort)formatIn.cfFormat).Name);
-                int result = innerData.SetData(formatIn, medium, release);
+                int result = innerData.SetData(ref formatIn, ref medium, release);
                 log.DebugFormat("Result: {0}", result);
                 return result;
 
@@ -237,7 +237,7 @@ namespace OutlookFileDrag
 
         public int DAdvise(ref FORMATETC pFormatetc, ADVF advf, IAdviseSink adviseSink, out int connection)
         {
-            return innerData.DAdvise(pFormatetc, advf, adviseSink, out connection);
+            return innerData.DAdvise(ref pFormatetc, advf, adviseSink, out connection);
         }
 
         public int DUnadvise(int connection)
