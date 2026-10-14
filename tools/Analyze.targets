@@ -1,0 +1,7 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Condition="'$(NetAnalyzersDirectory)' != ''">
+    <Analyzer Include="$(NetAnalyzersDirectory)\Microsoft.CodeAnalysis.NetAnalyzers.dll" />
+    <Analyzer Include="$(NetAnalyzersDirectory)\Microsoft.CodeAnalysis.CSharp.NetAnalyzers.dll" />
+    <EditorConfigFiles Include="$(MSBuildThisFileDirectory)validation.globalconfig" />
+  </ItemGroup>
+</Project>

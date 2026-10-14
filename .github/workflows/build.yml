@@ -25,6 +25,15 @@ jobs:
         run: |
           msbuild OutlookFileDrag/OutlookFileDrag.csproj /t:Compile /p:Configuration=Release /p:Platform=AnyCPU /p:SignManifests=false /p:VisualStudioVersion=17.0 /nologo /verbosity:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Regression tests (x86 and x64)
+        shell: pwsh
+        run: |
+          foreach ($platform in @('x86', 'x64')) {
+            msbuild tests/OutlookFileDrag.RegressionTests.csproj /t:Rebuild /p:Platform=$platform /p:UseSharedCompilation=false /nologo /verbosity:minimal
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & "tests/bin/$platform/OutlookFileDrag.RegressionTests.exe"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - name: Verify assembly version
         shell: pwsh
         run: |

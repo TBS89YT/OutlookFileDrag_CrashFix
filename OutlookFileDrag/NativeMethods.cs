@@ -61,7 +61,10 @@ namespace OutlookFileDrag
         public static extern bool GlobalUnlock(IntPtr handle);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-        public static extern IntPtr GlobalSize(IntPtr handle);
+        public static extern UIntPtr GlobalSize(IntPtr handle);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern uint GlobalFlags(IntPtr handle);
 
         [DllImport("ole32.dll", PreserveSig = false)]
         public static extern ILockBytes CreateILockBytesOnHGlobal(IntPtr hGlobal, bool fDeleteOnRelease);
@@ -99,7 +102,7 @@ namespace OutlookFileDrag
         [ComImport, Guid("0000000A-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         public interface ILockBytes
         {
-            void ReadAt([In, MarshalAs(UnmanagedType.U8)] long ulOffset, [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] pv, [In, MarshalAs(UnmanagedType.U4)] int cb, IntPtr pcbRead);
+            void ReadAt([In, MarshalAs(UnmanagedType.U8)] long ulOffset, [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] byte[] pv, [In, MarshalAs(UnmanagedType.U4)] int cb, IntPtr pcbRead);
             void WriteAt([In, MarshalAs(UnmanagedType.U8)] long ulOffset, IntPtr pv, [In, MarshalAs(UnmanagedType.U4)] int cb, [Out, MarshalAs(UnmanagedType.LPArray)] int[] pcbWritten);
             void Flush();
             void SetSize([In, MarshalAs(UnmanagedType.U8)] long cb);

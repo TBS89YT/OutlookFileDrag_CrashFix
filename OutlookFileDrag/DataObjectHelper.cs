@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -94,170 +94,83 @@ namespace OutlookFileDrag
 
         internal static string[] GetFilenamesAnsi(NativeMethods.IDataObject data)
         {
-            log.Debug("Getting filenames (ANSI)");
-            IntPtr ptrFgd = IntPtr.Zero;
-            STGMEDIUM medium = new STGMEDIUM();
-
-            try
-            {
-                //Define FileGroupDescriptor format
-                FORMATETC format = new FORMATETC();
-                format.cfFormat = (short)GetClipboardFormat("FileGroupDescriptor");
-                format.dwAspect = DVASPECT.DVASPECT_CONTENT;
-                format.lindex = -1;
-                format.ptd = IntPtr.Zero;
-                format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
-
-                //Query if format exists in data
-                if (data.QueryGetData(ref format) != NativeMethods.S_OK)
-                {
-                    log.Debug("No filenames found");
-                    return null;
-                }
-
-                //Get data into medium
-                int retVal = data.GetData(ref format, out medium);
-                if (retVal != NativeMethods.S_OK)
-                    throw new Exception(string.Format("Could not get FileGroupDescriptor format.  Error returned: {0}", retVal));
-
-                //Read medium into byte array
-                log.Debug("Reading structure into memory stream");
-                byte[] bytes;
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    DataObjectHelper.ReadMediumIntoStream(medium, stream);
-                    bytes = new byte[stream.Length];
-                    stream.Seek(0, SeekOrigin.Begin);
-                    stream.Read(bytes, 0, bytes.Length);
-                }
-
-                //Copy byte array into unmanaged memory
-                log.Debug("Copying structure into unmanaged memory");
-                ptrFgd = Marshal.AllocHGlobal(bytes.Length);
-                Marshal.Copy(bytes, 0, ptrFgd, bytes.Length);
-
-                //Marshal unmanaged memory to a FILEGROUPDESCRIPTORA struct
-                log.Debug("Marshaling unmanaged memory into FILEGROUPDESCRIPTORA struct");
-                NativeMethods.FILEGROUPDESCRIPTORA fgd = (NativeMethods.FILEGROUPDESCRIPTORA)Marshal.PtrToStructure(ptrFgd, typeof(NativeMethods.FILEGROUPDESCRIPTORA));
-                log.Debug(string.Format("Files found: {0}", fgd.cItems));
-
-                //Create an array to store file names
-                string[] filenames = new string[fgd.cItems];
-
-                //Get the pointer to the first file descriptor
-                IntPtr fdPtr = IntPtr.Add(ptrFgd, sizeof(uint));
-
-                //Loop for the number of files acording to the file group descriptor
-                for (int fdIndex = 0; fdIndex < fgd.cItems; fdIndex++)
-                {
-                    log.DebugFormat("Filenames found: {0}", string.Join(", ", filenames));
-
-                    //Marshal pointer to a FILEDESCRIPTORA struct
-                    NativeMethods.FILEDESCRIPTORA fd = (NativeMethods.FILEDESCRIPTORA)Marshal.PtrToStructure(fdPtr, typeof(NativeMethods.FILEDESCRIPTORA));
-
-                    //Get filename of file descriptor and put in array
-                    filenames[fdIndex] = fd.cFileName;
-
-                    //Move the file descriptor pointer to the next file descriptor
-                    fdPtr = IntPtr.Add(fdPtr, Marshal.SizeOf(fd));
-                }
-
-                log.DebugFormat("Filenames found: {0}", string.Join(", ", filenames));
-
-                return filenames;
-
-            }
-            finally
-            {
-                //Release all unmanaged objects
-                Marshal.FreeHGlobal(ptrFgd);
-                if (medium.tymed != TYMED.TYMED_NULL)
-                    NativeMethods.ReleaseStgMedium(ref medium);
-            }
+            return GetDescriptorFilenames(data, false);
         }
 
         internal static string[] GetFilenamesUnicode(NativeMethods.IDataObject data)
         {
-            log.Debug("Getting filenames (Unicode)");
-            IntPtr ptrFgd = IntPtr.Zero;
-            STGMEDIUM medium = new STGMEDIUM();
-            try
+            return GetDescriptorFilenames(data, true);
+        }
+
+        // Limit descriptor metadata, not file contents. Reject untrusted counts before allocation.
+        internal const int MaxDescriptorBytes = 16 * 1024 * 1024;
+
+        private sealed class DescriptorBuffer : MemoryStream
+        {
+            public override void Write(byte[] buffer, int offset, int count)
             {
-                //Define FileGroupDescriptorW format
-                FORMATETC format = new FORMATETC();
-                format.cfFormat = (short)GetClipboardFormat("FileGroupDescriptorW");
-                format.dwAspect = DVASPECT.DVASPECT_CONTENT;
-                format.lindex = -1;
-                format.ptd = IntPtr.Zero;
-                format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
-
-                //Query if format exists in data
-                if (data.QueryGetData(ref format) != NativeMethods.S_OK)
-                {
-                    log.Debug("No filenames found");
-                    return null;
-                }
-
-                //Get data into medium
-                int retVal = data.GetData(ref format, out medium);
-                if (retVal != NativeMethods.S_OK)
-                    throw new Exception(string.Format("Could not get FileGroupDescriptorW format.  Error returned: {0}", retVal));
-
-                //Read medium into byte array
-                log.Debug("Reading structure into memory stream");
-                byte[] bytes;
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    DataObjectHelper.ReadMediumIntoStream(medium, stream);
-                    bytes = new byte[stream.Length];
-                    stream.Seek(0, SeekOrigin.Begin);
-                    stream.Read(bytes, 0, bytes.Length);
-                }
-                
-                //Copy byte array into unmanaged memory
-                log.Debug("Copying structure into unmanaged memory");
-                ptrFgd = Marshal.AllocHGlobal(bytes.Length);
-                Marshal.Copy(bytes, 0, ptrFgd, bytes.Length);
-
-                //Marshal unmanaged memory to a FILEGROUPDESCRIPTORW struct
-                log.Debug("Marshaling unmanaged memory into FILEGROUPDESCRIPTORW struct");
-                NativeMethods.FILEGROUPDESCRIPTORW fgd = (NativeMethods.FILEGROUPDESCRIPTORW)Marshal.PtrToStructure(ptrFgd, typeof(NativeMethods.FILEGROUPDESCRIPTORW));
-                log.Debug(string.Format("Files found: {0}", fgd.cItems));
-
-                //Create an array to store file names
-                string[] filenames = new string[fgd.cItems];
-
-                //Get the pointer to the first file descriptor
-                IntPtr ptrFd = IntPtr.Add(ptrFgd, sizeof(uint));
-
-                //Loop for the number of files acording to the file group descriptor
-                for (int fdIndex = 0; fdIndex < fgd.cItems; fdIndex++)
-                {
-                    log.DebugFormat("Getting filename {0}", fdIndex);
-
-                    //Marshal pointer to a FILEDESCRIPTORW struct
-                    NativeMethods.FILEDESCRIPTORW fd = (NativeMethods.FILEDESCRIPTORW)Marshal.PtrToStructure(ptrFd, typeof(NativeMethods.FILEDESCRIPTORW));
-
-                    //Get filename of file descriptor and put in array
-                    filenames[fdIndex] = fd.cFileName;
-
-                    //Move the file descriptor pointer to the next file descriptor
-                    ptrFd = IntPtr.Add(ptrFd, Marshal.SizeOf(fd));
-                }
-
-                log.DebugFormat("Filenames found: {0}", string.Join(", ", filenames));
-                return filenames;
-
-            }
-            finally
-            {
-                //Release all unmanaged objects
-                Marshal.FreeHGlobal(ptrFgd);
-                if (medium.tymed != TYMED.TYMED_NULL)
-                    NativeMethods.ReleaseStgMedium(ref medium);
+                if (count < 0 || Position > MaxDescriptorBytes - (long)count)
+                    throw new InvalidDataException("File descriptor metadata exceeds the safety limit.");
+                base.Write(buffer, offset, count);
             }
         }
 
+        private static string[] GetDescriptorFilenames(NativeMethods.IDataObject data, bool unicode)
+        {
+            STGMEDIUM medium = new STGMEDIUM();
+            try
+            {
+                FORMATETC format = new FORMATETC();
+                format.cfFormat = (short)GetClipboardFormat(unicode ? "FileGroupDescriptorW" : "FileGroupDescriptor");
+                format.dwAspect = DVASPECT.DVASPECT_CONTENT;
+                format.lindex = -1;
+                format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
+                if (data.QueryGetData(ref format) != NativeMethods.S_OK) return null;
+                int result = data.GetData(ref format, out medium);
+                if (result != NativeMethods.S_OK)
+                    throw new COMException("Could not get file descriptors.", result);
+                using (var buffer = new DescriptorBuffer())
+                {
+                    ReadMediumIntoStream(medium, buffer);
+                    return ParseFileDescriptors(buffer.ToArray(), unicode);
+                }
+            }
+            finally
+            {
+                // ReleaseStgMedium also honors a provider's pUnkForRelease controller.
+                if (medium.tymed != TYMED.TYMED_NULL) NativeMethods.ReleaseStgMedium(ref medium);
+            }
+        }
+
+        internal static string[] ParseFileDescriptors(byte[] bytes, bool unicode)
+        {
+            if (bytes == null || bytes.Length < sizeof(uint) || bytes.Length > MaxDescriptorBytes)
+                throw new InvalidDataException("Invalid file descriptor header size.");
+            Type descriptorType = unicode ? typeof(NativeMethods.FILEDESCRIPTORW) : typeof(NativeMethods.FILEDESCRIPTORA);
+            int descriptorSize = Marshal.SizeOf(descriptorType);
+            int nameOffset = Marshal.OffsetOf(descriptorType, "cFileName").ToInt32();
+            int nameBytes = unicode ? 520 : 260;
+            if (nameOffset != 72 || descriptorSize != nameOffset + nameBytes)
+                throw new InvalidDataException("Unexpected native file descriptor layout.");
+            uint count = BitConverter.ToUInt32(bytes, 0);
+            // ULONG arithmetic must not wrap; compare against actual bytes before allocating.
+            ulong required = sizeof(uint) + (ulong)count * (uint)descriptorSize;
+            if (required > (ulong)bytes.Length)
+                throw new InvalidDataException("Truncated file descriptor array.");
+            var filenames = new string[checked((int)count)];
+            for (int i = 0; i < filenames.Length; i++)
+            {
+                int start = checked(sizeof(uint) + i * descriptorSize + nameOffset);
+                int end = start;
+                int stride = unicode ? 2 : 1;
+                int limit = start + nameBytes;
+                while (end < limit && (bytes[end] != 0 || (unicode && bytes[end + 1] != 0))) end += stride;
+                if (end == limit) throw new InvalidDataException("Unterminated descriptor filename.");
+                filenames[i] = (unicode ? System.Text.Encoding.Unicode : System.Text.Encoding.Default)
+                    .GetString(bytes, start, end - start);
+            }
+            return filenames;
+        }
         internal static void ReadFileContents(NativeMethods.IDataObject data, int index, Stream stream)
         {
             STGMEDIUM medium = new STGMEDIUM();            
@@ -312,11 +225,11 @@ namespace OutlookFileDrag
 
             NativeMethods.ILockBytes iLockBytes = null;
             NativeMethods.IStorage iStorageNew = null;
-            IntPtr ptrRead = IntPtr.Zero;
+            NativeMethods.IStorage iStorage = null;
             try
             {
                 //Marshal pointer to an IStorage object
-                NativeMethods.IStorage iStorage = (NativeMethods.IStorage)Marshal.GetObjectForIUnknown(handle);
+                iStorage = (NativeMethods.IStorage)Marshal.GetObjectForIUnknown(handle);
 
                 //Create an ILockBytes object on a HGlobal, then create a IStorage object on top of the ILockBytes object
                 iLockBytes = NativeMethods.CreateILockBytesOnHGlobal(IntPtr.Zero, true);
@@ -330,41 +243,51 @@ namespace OutlookFileDrag
                 //Get length of ILockBytes byte array
                 System.Runtime.InteropServices.ComTypes.STATSTG stat = new System.Runtime.InteropServices.ComTypes.STATSTG();
                 iLockBytes.Stat(out stat, 1);
-                long length = stat.cbSize;
-
-                //Read bytes into stream
-                ptrRead = Marshal.AllocCoTaskMem(sizeof(int));
-                byte[] buffer = new byte[4096];     //4 KB buffer
-                int offset = 0;
-                int bytesRead;
-                while (true)
-                {
-                    iLockBytes.ReadAt(offset, buffer, buffer.Length, ptrRead);
-                    bytesRead = Marshal.ReadInt32(ptrRead);
-                    if (bytesRead == 0)
-                        break;
-                    stream.Write(buffer, 0, bytesRead);
-                    offset += bytesRead;
-                }
+                CopyLockBytes(iLockBytes, stat.cbSize, stream);
             }
             finally
             {
                 //Release all unmanaged objects
-                Marshal.FreeCoTaskMem(ptrRead);
                 if (iStorageNew != null)
                     Marshal.ReleaseComObject(iStorageNew);
                 if (iLockBytes != null)
                     Marshal.ReleaseComObject(iLockBytes);
+                if (iStorage != null && Marshal.IsComObject(iStorage))
+                    Marshal.ReleaseComObject(iStorage);
             }
+        }
+
+        internal static void CopyLockBytes(NativeMethods.ILockBytes source, long length, Stream stream)
+        {
+            if (length < 0) throw new InvalidDataException("Invalid storage length.");
+            IntPtr ptrRead = Marshal.AllocCoTaskMem(sizeof(int));
+            try
+            {
+                byte[] buffer = new byte[4096];
+                long offset = 0;
+                while (offset < length)
+                {
+                    int requested = (int)Math.Min(buffer.Length, length - offset);
+                    Marshal.WriteInt32(ptrRead, 0);
+                    source.ReadAt(offset, buffer, requested, ptrRead);
+                    int read = Marshal.ReadInt32(ptrRead);
+                    if (read <= 0 || read > requested)
+                        throw new InvalidDataException("Invalid or incomplete ILockBytes read.");
+                    stream.Write(buffer, 0, read);
+                    offset = checked(offset + read);
+                }
+            }
+            finally { Marshal.FreeCoTaskMem(ptrRead); }
         }
 
         private static void ReadIStreamIntoStream(IntPtr handle, Stream stream)
         {
             IntPtr ptrRead = IntPtr.Zero;
+            IStream iStream = null;
             try
             {
                 //Marshal pointer to an IStream object
-                IStream iStream = (IStream)Marshal.GetObjectForIUnknown(handle);
+                iStream = (IStream)Marshal.GetObjectForIUnknown(handle);
 
                 //Create pointer to integer that stores # of bytes read
                 ptrRead = Marshal.AllocCoTaskMem(sizeof(int));
@@ -374,8 +297,11 @@ namespace OutlookFileDrag
                 int bytesRead;
                 while (true)
                 {
+                    Marshal.WriteInt32(ptrRead, 0);
                     iStream.Read(buffer, buffer.Length, ptrRead);
                     bytesRead = Marshal.ReadInt32(ptrRead);
+                    if (bytesRead < 0 || bytesRead > buffer.Length)
+                        throw new InvalidDataException("Invalid IStream read count.");
                     if (bytesRead == 0)
                         break;
                     else
@@ -386,12 +312,25 @@ namespace OutlookFileDrag
             {
                 //Release all unmanaged objects
                 Marshal.FreeCoTaskMem(ptrRead);
+                if (iStream != null && Marshal.IsComObject(iStream))
+                    Marshal.ReleaseComObject(iStream);
             }
 
         }
 
         private static void ReadHGlobalIntoStream(IntPtr handle, Stream stream)
         {
+            ulong size = NativeMethods.GlobalSize(handle).ToUInt64();
+            if (size > long.MaxValue || (IntPtr.Size == 4 && size > int.MaxValue))
+                throw new IOException("HGLOBAL exceeds the supported process address range.");
+            long length = (long)size;
+            if (length == 0)
+            {
+                // A zero-sized movable allocation is valid but cannot be locked.
+                if (handle == IntPtr.Zero || NativeMethods.GlobalFlags(handle) == 0x8000)
+                    throw new InvalidDataException("Invalid HGLOBAL.");
+                return;
+            }
             //Lock HGlobal so it cannot be moved or discarded
             IntPtr source = NativeMethods.GlobalLock(handle);
 
@@ -399,19 +338,16 @@ namespace OutlookFileDrag
                 throw new Exception(string.Format("Unable to lock hglobal {0}", handle.ToString()));
             try
             {
-                //Get size of HGlobal (IntPtr for 64-bit safety)
-                long length = NativeMethods.GlobalSize(handle).ToInt64();
-
                 //Copy HGlobal into managed stream in chunks
                 byte[] buffer = new byte[4096];     //4 KB buffer
                 int bytesToCopy;
-                for(long offset = 0; offset < length; offset += buffer.Length)
+                for(long offset = 0; offset < length; )
                 {
                     //Copy buffer length or remaining length, whichever is smaller
                     bytesToCopy = (int)Math.Min(buffer.Length, length - offset);
-                    // Use IntPtr.Add to advance the source pointer by the current offset
-                    Marshal.Copy(IntPtr.Add(source, (int)offset), buffer, 0, bytesToCopy);
+                    Marshal.Copy(AddByteOffset(source, offset, bytesToCopy), buffer, 0, bytesToCopy);
                     stream.Write(buffer, 0, bytesToCopy);
+                    offset = checked(offset + bytesToCopy);
                 }
             }
             finally
@@ -419,6 +355,18 @@ namespace OutlookFileDrag
                 //Release all unmanaged objects
                 NativeMethods.GlobalUnlock(handle);
             }
+        }
+
+        internal static IntPtr AddByteOffset(IntPtr pointer, long offset, int count)
+        {
+            ulong address = IntPtr.Size == 4 ? unchecked((uint)pointer.ToInt32()) : unchecked((ulong)pointer.ToInt64());
+            ulong maximum = IntPtr.Size == 4 ? uint.MaxValue : ulong.MaxValue;
+            if (offset < 0 || count < 0 || (ulong)offset > maximum - address)
+                throw new OverflowException("Native pointer offset exceeds the address range.");
+            ulong target = address + (ulong)offset;
+            if (count > 0 && (ulong)(count - 1) > maximum - target)
+                throw new OverflowException("Native buffer exceeds the address range.");
+            return IntPtr.Size == 4 ? new IntPtr(unchecked((int)target)) : new IntPtr(unchecked((long)target));
         }
     }
 }
