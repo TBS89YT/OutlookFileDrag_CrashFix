@@ -1,7 +1,14 @@
 # Outlook File Drag: reliability audit and release gates
 
-Audit date: 2026-10-14. **These changes are untested on Windows and Outlook.
-They are not in the existing v1.0.12-fixed MSI. Do not deploy yet.**
+Audit/update date: 2026-10-14. Managed builds and 114 regression cases in each of
+the x86 and x64 Windows processes pass, including native OLE helper tests.
+**Classic Outlook behavior, signed VSTO deployment and MSI installation remain
+untested. These changes are not in the existing v1.0.12-fixed MSI. Do not deploy yet.**
+
+The five additional findings (partial exports, descriptor bounds, unsafe export
+paths, enumeration state and large offsets) have been corrected. See the
+[German implementation and validation report](AUDIT_FIX_REPORT_DE.md), including
+reproducible commands, test coverage, known limits and remaining release blockers.
 
 ## Confirmed source faults
 
@@ -42,6 +49,10 @@ Compare a failing and a working **classic Outlook** PC:
 
 ## Release blocking validation (x86 and x64)
 
+- [x] Managed Release/Debug compilation, native/helper regression tests in both
+      process architectures, dependency/version/setup consistency checks.
+- [x] Microsoft analyzers for reliability/security/interoperability; no warnings
+      or errors, four informational suggestions in existing code.
 - [ ] Visual Studio Release build with .NET Framework 4.8, VSTO and VS
       Installer Projects tooling, zero compilation errors.
 - [ ] Inspect generated MSI and installed files for DLL file version

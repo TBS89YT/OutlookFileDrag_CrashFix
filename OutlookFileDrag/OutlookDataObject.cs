@@ -12,18 +12,33 @@ namespace OutlookFileDrag
     {
         private NativeMethods.IDataObject innerData;
         private string[] tempFilenames;
+        private readonly object exportLock = new object();
+        private bool exporting;
+        private readonly Func<string> createExportDirectory;
+        private readonly Func<string, Stream> openExportFile;
         private static ILog log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public bool FilesDropped { get; private set; }
 
         public OutlookDataObject(NativeMethods.IDataObject innerData)
+            : this(innerData, FileUtility.GetTempPath,
+                  path => new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+        }
+
+        // Internal seam for deterministic filesystem failures in regression tests.
+        internal OutlookDataObject(NativeMethods.IDataObject innerData, Func<string> createExportDirectory,
+                                   Func<string, Stream> openExportFile)
         {
             this.innerData = innerData;
+            this.createExportDirectory = createExportDirectory;
+            this.openExportFile = openExportFile;
         }
 
         public int EnumFormatEtc(DATADIR direction, out IEnumFORMATETC ppenumFormatEtc)
         {
             IEnumFORMATETC origEnum = null;
+            var originalTargetDevices = new List<IntPtr>();
             try
             {
                 log.DebugFormat("IDataObject.EnumFormatEtc called -- direction {0}", direction);
@@ -39,10 +54,16 @@ namespace OutlookFileDrag
                         }
 
                         //Enumerate original formats
+                        if (origEnum == null) throw new InvalidDataException("Missing format enumerator.");
                         List<FORMATETC> formats = new List<FORMATETC>();
                         FORMATETC[] buffer = new FORMATETC[] { new FORMATETC() };
-                        while (origEnum.Next(1, buffer, null) == NativeMethods.S_OK)
+                        while (true)
                         {
+                            int next = origEnum.Next(1, buffer, null);
+                            if (next == NativeMethods.S_FALSE) break;
+                            if (next != NativeMethods.S_OK)
+                                throw new COMException("Could not enumerate source formats.", next);
+                            if (buffer[0].ptd != IntPtr.Zero) originalTargetDevices.Add(buffer[0].ptd);
                             //Convert format from short to unsigned short
                             ushort cfFormat = (ushort) buffer[0].cfFormat;
 
@@ -83,7 +104,8 @@ namespace OutlookFileDrag
             finally
             {
                 //Release all unmanaged objects
-                if (origEnum != null)
+                foreach (IntPtr device in originalTargetDevices) Marshal.FreeCoTaskMem(device);
+                if (origEnum != null && Marshal.IsComObject(origEnum))
                     Marshal.ReleaseComObject(origEnum);
             }
         }
@@ -139,12 +161,11 @@ namespace OutlookFileDrag
                         return NativeMethods.DV_E_DVASPECT;
 
                     //Extract files if not already extracted
-                    if (tempFilenames == null)
-                        ExtractFiles();
+                    string[] exportedFiles = ExtractFiles();
 
                     //Get list of dropped files
                     log.Debug("Setting drop files");
-                    DataObjectHelper.SetDropFiles(ref medium, tempFilenames);
+                    DataObjectHelper.SetDropFiles(ref medium, exportedFiles);
                     FilesDropped = true;
                     return NativeMethods.S_OK;
                 }
@@ -250,27 +271,55 @@ namespace OutlookFileDrag
             return innerData.EnumDAdvise(out enumAdvise);
         }
 
-        private void ExtractFiles()
+        private string[] ExtractFiles()
         {
-            //Get filenames being dragged
-            log.Debug("Getting filenames");
-            string[] filenames = DataObjectHelper.GetFilenames(this.innerData);
-            log.DebugFormat("Filenames: {0}", string.Join(",", filenames));
-
-            //Get temporary folder
-            log.Debug("Creating temp folder");
-            string tempPath = FileUtility.GetTempPath();
-            log.DebugFormat("Temp folder: {0}", tempPath);
-
-            //Save files to temporary directory
-            tempFilenames = new string[filenames.Length];
-            for (int fileIndex = 0; fileIndex < filenames.Length; fileIndex++)
+            lock (exportLock)
             {
-                tempFilenames[fileIndex] = FileUtility.GetUniqueFilename(Path.Combine(tempPath, filenames[fileIndex]));
-                log.DebugFormat("Extracting file {0}", filenames[fileIndex]);
-                using (FileStream fs = new FileStream(tempFilenames[fileIndex], FileMode.Create))
+                if (tempFilenames != null) return tempFilenames;
+                // Monitor locks are reentrant; reject callbacks while a batch is incomplete.
+                if (exporting) throw new InvalidOperationException("A file export is already in progress.");
+                exporting = true;
+                string tempPath = null;
+                var createdFiles = new List<string>();
+                try
                 {
-                    DataObjectHelper.ReadFileContents(this.innerData, fileIndex, fs);
+                    string[] filenames = DataObjectHelper.GetFilenames(innerData);
+                    if (filenames == null || filenames.Length == 0)
+                        throw new InvalidDataException("No virtual files were supplied.");
+                    tempPath = createExportDirectory();
+                    var completedFiles = new string[filenames.Length];
+                    for (int fileIndex = 0; fileIndex < filenames.Length; fileIndex++)
+                    {
+                        string target = FileUtility.GetSafeExportPath(tempPath, filenames[fileIndex]);
+                        // CreateNew prevents overwrites if a collision occurs after the check.
+                        using (Stream fs = openExportFile(target))
+                        {
+                            createdFiles.Add(target);
+                            DataObjectHelper.ReadFileContents(innerData, fileIndex, fs);
+                        }
+                        completedFiles[fileIndex] = target;
+                    }
+                    // Publish only after every file has been written and closed successfully.
+                    tempFilenames = completedFiles;
+                    return tempFilenames;
+                }
+                catch
+                {
+                    foreach (string file in createdFiles)
+                    {
+                        try { File.Delete(file); }
+                        catch (Exception ex) { log.Warn("Could not remove failed export file", ex); }
+                    }
+                    if (tempPath != null)
+                    {
+                        try { Directory.Delete(tempPath, false); }
+                        catch (Exception ex) { log.Warn("Could not remove failed export directory", ex); }
+                    }
+                    throw;
+                }
+                finally
+                {
+                    exporting = false;
                 }
             }
         }

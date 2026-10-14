@@ -1,0 +1,5 @@
+is_global = true
+global_level = 100
+dotnet_analyzer_diagnostic.category-Reliability.severity = warning
+dotnet_analyzer_diagnostic.category-Security.severity = warning
+dotnet_analyzer_diagnostic.category-Interoperability.severity = warning

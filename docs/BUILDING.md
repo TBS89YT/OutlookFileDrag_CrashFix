@@ -31,6 +31,36 @@ Do not use the repository's historical PFX artifact as a release credential with
 
 Use signing certificates outside the repository and never commit private key files or passwords. Release builds must produce manifests signed with a trusted certificate.
 
-The current dependency set contains `log4net` 2.0.8, which NuGet flags for published security advisories. Review a compatible supported update and run regression tests before releasing.
+The current dependency set is `log4net` 3.5.0 (`net462`) and EasyHook 2.7.7097. The project and both setup projects reference these identities. Both installers require .NET Framework 4.8.
+
+## Automated local validation without Outlook registration
+
+From the repository directory in Developer PowerShell for Visual Studio:
+
+```powershell
+.\tools\Validate.ps1
+```
+
+The script finds MSBuild using PATH or `vswhere`. It builds and executes the standalone .NET Framework 4.8 regression runner in real x86 and x64 processes, then builds all managed add-in sources in Release/Debug AnyCPU and Release with x86/x64 platform targets. It verifies dependency identities, payload hashes, versions and setup metadata. No additional test-framework packages are required. Logs, exact argument lists and results are written to `artifacts/`.
+
+The managed builds deliberately use `SignManifests=false`, `GenerateManifests=false` and `PrepareForRunDependsOn=CopyFilesToOutputDirectory`. They do not invoke the VSTO certificate, trust or registration targets. These DLLs are **not a deployable VSTO release**. In particular, ordinary VSTO `Build`/`Rebuild` targets can register/unregister an add-in and manage certificates; do not run them on a production Outlook machine as a harmless compilation check.
+
+To run the installed Microsoft .NET analyzers, supply the analyzer directory from a local .NET SDK:
+
+```powershell
+.\tools\Validate.ps1 -NetAnalyzersDirectory 'C:\Program Files\dotnet\sdk\10.0.402\Sdks\Microsoft.NET.Sdk\analyzers'
+```
+
+Adjust the SDK version to the installed one. Reliability, security and interoperability rules are enabled through `tools/validation.globalconfig`. Analysis uses a separate output directory and suppresses VSTO cleanup/registration targets. Diagnostics are also written to `artifacts/analysis.sarif`.
+
+Optional regression-sensitivity check:
+
+```powershell
+.\tools\Check-RegressionSensitivity.ps1 -MSBuildPath '<full path to MSBuild.exe>'
+```
+
+This compiles disposable copies under `artifacts/mutations/`, reintroducing one fault category at a time. The command succeeds only when the tests detect all five mutations. A nonzero exit from each mutated test executable is expected. Original source files remain unchanged. This check avoids native out-of-bounds reads and does not reserve gigabytes of memory.
+
+See [the German implementation and validation report](AUDIT_FIX_REPORT_DE.md) for actual results and outstanding release gates.
 
 See [reliability and release validation](RELIABILITY_AND_RELEASE_VALIDATION.md).

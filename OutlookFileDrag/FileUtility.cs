@@ -48,42 +48,52 @@ namespace OutlookFileDrag
 
         public static string GetUniqueFilename(string filename)
         {
-            string filenameNoExt;
-            string ext;
-
-            //If filename is too long, truncate filename
-            if (filename.Length >= NativeMethods.MAX_PATH)
+            string directory = Path.GetDirectoryName(Path.GetFullPath(filename));
+            string name = Path.GetFileName(filename);
+            ValidateExportName(name);
+            string stem = Path.GetFileNameWithoutExtension(name);
+            string ext = Path.GetExtension(name);
+            // Never truncate a directory or the collision suffix.
+            for (int index = 0; index < 1024; index++)
             {
-                ext = Path.GetExtension(filename);
-                filename = filename.Substring(0, NativeMethods.MAX_PATH - ext.Length - 1) + ext;
+                string suffix = index == 0 ? "" : string.Format(" ({0})", index);
+                int available = Math.Min(255, NativeMethods.MAX_PATH - 2 - directory.Length) - ext.Length - suffix.Length;
+                if (available < 1) throw new PathTooLongException("Export path leaves no space for a filename.");
+                string shortStem = stem.Length > available ? stem.Substring(0, available) : stem;
+                if (shortStem.Length > 0 && char.IsHighSurrogate(shortStem[shortStem.Length - 1]))
+                    shortStem = shortStem.Substring(0, shortStem.Length - 1);
+                string candidateName = shortStem + suffix + ext;
+                ValidateExportName(candidateName);
+                string candidate = Path.Combine(directory, candidateName);
+                if (!File.Exists(candidate) && !Directory.Exists(candidate)) return candidate;
             }
-            
-            //If file does not exist, use original filename
-            if (!File.Exists(filename))
-                return filename;
-
-            //Try appending number to filename until unique filename is found
-            filenameNoExt = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
-            ext = Path.GetExtension(filename);
-
-            for (int index = 1; index < 1024; index++)
-            {
-                string newFilename = string.Format("{0} ({1}){2}", filenameNoExt, index, ext);
-
-                //If new filename is too long, truncate new filename
-                if (newFilename.Length > NativeMethods.MAX_PATH)
-                {
-                    newFilename = string.Format("{0} ({1}){2}", filenameNoExt.Substring(0, NativeMethods.MAX_PATH - ext.Length - 8), index, ext);
-                }
-
-                if (!File.Exists(newFilename))
-                    return newFilename;
-            }
-
-            //If no unique filename could be found, throw exception
-            throw new Exception(string.Format("Could not generate unique filename for file {0}", filename));
+            throw new IOException("Could not generate a unique export filename.");
         }
 
+        internal static string GetSafeExportPath(string exportDirectory, string name)
+        {
+            ValidateExportName(name);
+            string root = Path.GetFullPath(exportDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string target = Path.GetFullPath(GetUniqueFilename(Path.Combine(root, name)));
+            if (!string.Equals(Path.GetDirectoryName(target), root, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Export filename escapes the temporary directory.");
+            return target;
+        }
+
+        private static void ValidateExportName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || name == "." || name == ".." ||
+                name.Length > 255 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+                name.IndexOf('/') >= 0 || name.IndexOf('\\') >= 0 || Path.IsPathRooted(name) ||
+                name.EndsWith(".", StringComparison.Ordinal) || name.EndsWith(" ", StringComparison.Ordinal))
+                throw new InvalidDataException("Invalid export filename.");
+            string device = name.Split('.')[0].TrimEnd(' ').ToUpperInvariant();
+            if (device == "CON" || device == "PRN" || device == "AUX" || device == "NUL" ||
+                device == "CONIN$" || device == "CONOUT$" ||
+                (device.Length == 4 && (device.StartsWith("COM", StringComparison.Ordinal) || device.StartsWith("LPT", StringComparison.Ordinal)) &&
+                 ("123456789¹²³".IndexOf(device[3]) >= 0)))
+                throw new InvalidDataException("Reserved Windows device filename.");
+        }
 
     }
 }
