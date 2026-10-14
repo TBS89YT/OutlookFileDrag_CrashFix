@@ -23,7 +23,7 @@ jobs:
       - name: Compile add-in
         shell: pwsh
         run: |
-          msbuild OutlookFileDrag/OutlookFileDrag.csproj /t:CoreCompile /p:Configuration=Release /p:Platform=AnyCPU /p:SignManifests=false /p:VisualStudioVersion=17.0 /nologo /verbosity:minimal
+          msbuild OutlookFileDrag/OutlookFileDrag.csproj /t:Compile /p:Configuration=Release /p:Platform=AnyCPU /p:SignManifests=false /p:VisualStudioVersion=17.0 /nologo /verbosity:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify assembly version
         shell: pwsh
