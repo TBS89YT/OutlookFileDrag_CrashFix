@@ -206,7 +206,8 @@
     </Compile>
     <None Include="App.config">
       <SubType>Designer</SubType>
-    </None>    <None Include="packages.config">
+    </None>
+    <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
     <Compile Include="ThisAddIn.cs">
