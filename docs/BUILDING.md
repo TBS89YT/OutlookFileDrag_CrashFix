@@ -14,7 +14,7 @@ Compile the VSTO add-in in Release configuration. When building for local tests 
 
 ## Continuous integration
 
-The GitHub Actions workflow builds the managed add-in on a Windows runner. It does not build MSIs, test Outlook integration, or sign deployment manifests. A passing check confirms compilation only.
+The GitHub Actions workflow runs the managed C# compiler target (`CoreCompile`) on a Windows runner. It does not complete the VSTO manifest generation, build MSIs, test Outlook integration, or sign deployment manifests. A passing check confirms managed-source compilation only.
 
 Before publishing an MSI:
 
@@ -30,5 +30,7 @@ Before publishing an MSI:
 Do not use the repository's historical PFX artifact as a release credential without verifying its provenance. Files in a public Git repository remain accessible in its history even after deletion. If any private key was published, treat that key as potentially exposed and replace/revoke it as appropriate.
 
 Use signing certificates outside the repository and never commit private key files or passwords. Release builds must produce manifests signed with a trusted certificate.
+
+The current dependency set contains `log4net` 2.0.8, which NuGet flags for published security advisories. Review a compatible supported update and run regression tests before releasing.
 
 See [reliability and release validation](RELIABILITY_AND_RELEASE_VALIDATION.md).
