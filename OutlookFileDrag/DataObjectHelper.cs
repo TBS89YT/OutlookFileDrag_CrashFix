@@ -30,7 +30,7 @@ namespace OutlookFileDrag
             format.ptd = IntPtr.Zero;
             format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
 
-            return data.QueryGetData(format) == NativeMethods.S_OK;
+            return data.QueryGetData(ref format) == NativeMethods.S_OK;
         }
 
         internal static void SetDropFiles(ref STGMEDIUM medium, string[] filenames)
@@ -45,21 +45,37 @@ namespace OutlookFileDrag
             string filenameList = string.Join("\0", filenames) + "\0\0";
             byte[] filenameBytes = System.Text.Encoding.Unicode.GetBytes(filenameList);
 
-            //Allocate global memory and get pointer
+            // OLE requires a movable global memory handle for TYMED_HGLOBAL.
             int dataLength = dropFilesSize + filenameBytes.Length;
-            IntPtr ptrDropFiles = Marshal.AllocHGlobal(dataLength);
+            IntPtr hGlobal = NativeMethods.GlobalAlloc(
+                NativeMethods.GMEM_MOVEABLE, new UIntPtr((uint)dataLength));
+            if (hGlobal == IntPtr.Zero)
+                throw new OutOfMemoryException("GlobalAlloc failed for CF_HDROP");
 
-            //Copy DROPFILES structure to global memory.
-            Marshal.StructureToPtr(dropFiles, ptrDropFiles, false);
+            IntPtr ptrDropFiles = IntPtr.Zero;
+            bool copied = false;
+            try
+            {
+                ptrDropFiles = NativeMethods.GlobalLock(hGlobal);
+                if (ptrDropFiles == IntPtr.Zero)
+                    throw new InvalidOperationException("GlobalLock failed for CF_HDROP");
+                Marshal.StructureToPtr(dropFiles, ptrDropFiles, false);
+                Marshal.Copy(filenameBytes, 0,
+                    IntPtr.Add(ptrDropFiles, dropFilesSize), filenameBytes.Length);
+                copied = true;
+            }
+            finally
+            {
+                if (ptrDropFiles != IntPtr.Zero)
+                    NativeMethods.GlobalUnlock(hGlobal);
+                if (!copied)
+                    NativeMethods.GlobalFree(hGlobal);
+            }
 
-            //Copy filenames to memory after DROPFILES structure
-            IntPtr ptrFiles = IntPtr.Add(ptrDropFiles, dropFilesSize);
-            Marshal.Copy(filenameBytes, 0, ptrFiles, filenameBytes.Length);
-            
-            //Load structure into medium
-            medium.unionmember = ptrDropFiles;
+//Load structure into medium
+            medium.unionmember = hGlobal;
             medium.tymed = TYMED.TYMED_HGLOBAL;
-            medium.pUnkForRelease = IntPtr.Zero;        //HGLOBAL to be released by caller
+            medium.pUnkForRelease = null;        // Caller releases medium via ReleaseStgMedium
         }
 
         internal static string[] GetFilenames(NativeMethods.IDataObject data)
@@ -93,14 +109,14 @@ namespace OutlookFileDrag
                 format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
 
                 //Query if format exists in data
-                if (data.QueryGetData(format) != NativeMethods.S_OK)
+                if (data.QueryGetData(ref format) != NativeMethods.S_OK)
                 {
                     log.Debug("No filenames found");
                     return null;
                 }
 
                 //Get data into medium
-                int retVal = data.GetData(format, out medium);
+                int retVal = data.GetData(ref format, out medium);
                 if (retVal != NativeMethods.S_OK)
                     throw new Exception(string.Format("Could not get FileGroupDescriptor format.  Error returned: {0}", retVal));
 
@@ -155,7 +171,7 @@ namespace OutlookFileDrag
             {
                 //Release all unmanaged objects
                 Marshal.FreeHGlobal(ptrFgd);
-                if (medium.pUnkForRelease == null)
+                if (medium.tymed != TYMED.TYMED_NULL)
                     NativeMethods.ReleaseStgMedium(ref medium);
             }
         }
@@ -176,14 +192,14 @@ namespace OutlookFileDrag
                 format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
 
                 //Query if format exists in data
-                if (data.QueryGetData(format) != NativeMethods.S_OK)
+                if (data.QueryGetData(ref format) != NativeMethods.S_OK)
                 {
                     log.Debug("No filenames found");
                     return null;
                 }
 
                 //Get data into medium
-                int retVal = data.GetData(format, out medium);
+                int retVal = data.GetData(ref format, out medium);
                 if (retVal != NativeMethods.S_OK)
                     throw new Exception(string.Format("Could not get FileGroupDescriptorW format.  Error returned: {0}", retVal));
 
@@ -237,7 +253,7 @@ namespace OutlookFileDrag
             {
                 //Release all unmanaged objects
                 Marshal.FreeHGlobal(ptrFgd);
-                if (medium.pUnkForRelease == null)
+                if (medium.tymed != TYMED.TYMED_NULL)
                     NativeMethods.ReleaseStgMedium(ref medium);
             }
         }
@@ -256,7 +272,7 @@ namespace OutlookFileDrag
                 format.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
 
                 //Get data
-                int retVal = data.GetData(format, out medium);
+                int retVal = data.GetData(ref format, out medium);
                 if (retVal != NativeMethods.S_OK)
                     throw new Exception(string.Format("Could not get FileContents format.  Error returned: {0}", retVal));
 
@@ -266,7 +282,7 @@ namespace OutlookFileDrag
             finally
             {
                 //Release all unmanaged objects
-                if (medium.pUnkForRelease == null)
+                if (medium.tymed != TYMED.TYMED_NULL)
                     NativeMethods.ReleaseStgMedium(ref medium);
             }
         }
