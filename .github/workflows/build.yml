@@ -18,6 +18,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: NuGet/setup-nuget@v2
       - uses: microsoft/setup-msbuild@v2
+      - name: Verify installer configuration
+        shell: pwsh
+        run: ./tools/Test-InstallerConfiguration.ps1
       - name: Restore NuGet packages
         run: nuget restore OutlookFileDrag.sln -NonInteractive
       - name: Compile add-in

@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot
 Push-Location $taskRoot
 try {
+    & (Join-Path $PSScriptRoot 'Test-InstallerConfiguration.ps1') -RepositoryRoot $taskRoot
     if (-not $MSBuildPath) {
         $taskMSBuild = Get-Command msbuild.exe -ErrorAction SilentlyContinue
         if ($taskMSBuild) { $MSBuildPath = $taskMSBuild.Source }

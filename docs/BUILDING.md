@@ -16,6 +16,8 @@ Compile the VSTO add-in in Release configuration. When building for local tests 
 
 The GitHub Actions workflow runs the managed compilation target (`Compile`) on a Windows runner. It does not complete the VSTO manifest generation, build MSIs, test Outlook integration, or sign deployment manifests. A passing check confirms managed-source compilation only.
 
+The workflow also runs `tools/Test-InstallerConfiguration.ps1`. This read-only check parses both installer projects, verifies block structure and project-output nesting, rejects `ContentFiles`, and checks explicit EasyHook and VSTO manifest payloads for missing or duplicate targets. It also runs at the start of `tools/Validate.ps1`. These configuration checks do not replace building and inspecting the actual MSIs.
+
 Before publishing an MSI:
 
 1. Build the add-in with trusted publisher credentials and verify both signed VSTO manifests.
