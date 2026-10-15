@@ -128,6 +128,20 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' and '$(PlatformTarget)' == 'x86' ">
+    <OutputPath>bin\Release\x86\</OutputPath>
+    <OutDir>bin\Release\x86\</OutDir>
+    <IntermediateOutputPath>obj\Release\x86\</IntermediateOutputPath>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' and '$(PlatformTarget)' == 'x64' ">
+    <OutputPath>bin\Release\x64\</OutputPath>
+    <OutDir>bin\Release\x64\</OutDir>
+    <IntermediateOutputPath>obj\Release\x64\</IntermediateOutputPath>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
   <!--
     This section specifies references for the project.
   -->
@@ -225,7 +239,7 @@
     <Content Include="EasyHook32.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="EasyHook64.dll">
+    <Content Include="EasyHook64.dll" Condition="'$(PlatformTarget)' != 'x86'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -240,6 +254,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->
   <Import Project="$(VSToolsPath)\OfficeTools\Microsoft.VisualStudio.Tools.Office.targets" Condition="'$(VSToolsPath)' != ''" />
+  <Import Project="..\tools\Release.SafeVsto.targets" />
   <!-- This section defines VSTO properties that describe the host-changeable project properties. -->
   <ProjectExtensions>
     <VisualStudio>

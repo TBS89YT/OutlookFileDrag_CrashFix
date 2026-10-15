@@ -322,3 +322,13 @@ ASALocalRun/
 
 # NVidia Nsight GPU debugger configuration file
 *.nvuser
+
+# Release packages and local signing material
+*.msi
+*.zip
+*.p12
+*.cer
+*.crt
+*.key
+*.pem
+release-1.0.13-final/
