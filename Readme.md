@@ -11,7 +11,7 @@ Download the [latest published release](https://github.com/TBS89YT/OutlookFileDr
 - [64-bit Windows MSI (ZIP)](https://github.com/TBS89YT/OutlookFileDrag_CrashFix/releases/latest/download/OutlookFileDragSetup_x64.zip)
 - [32-bit Windows MSI (ZIP)](https://github.com/TBS89YT/OutlookFileDrag_CrashFix/releases/latest/download/OutlookFileDragSetup.zip)
 
-Until 1.0.13 is published, these links continue to point to the previous published release. Select the installer for the **installed classic Outlook bitness** (32-bit Outlook: x86; 64-bit Outlook: x64), not merely the Windows architecture. The add-in supports **classic Outlook for Windows** only.
+Select the installer for the **installed classic Outlook bitness** (32-bit Outlook: x86; 64-bit Outlook: x64), not merely the Windows architecture. The add-in supports **classic Outlook for Windows** only.
 
 The 1.0.13 installers have been packaged and tested. Their VSTO manifests use a self-signed community-build certificate; the MSI files are not signed by a publicly trusted publisher. Windows or Office may show a publisher warning.
 
