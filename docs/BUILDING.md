@@ -2,7 +2,7 @@
 
 ## Development requirements
 
-Use Windows, Visual Studio 2022 with the Office/SharePoint development workload, the .NET Framework 4.8 targeting pack, and NuGet. Building the MSI projects also requires the Visual Studio Installer Projects extension.
+Use Windows and Visual Studio with the Office/SharePoint development workload, the .NET Framework 4.8 targeting pack, NuGet, and the Visual Studio Installer Projects extension.
 
 Restore the `packages.config` dependencies:
 
@@ -10,30 +10,21 @@ Restore the `packages.config` dependencies:
 nuget restore OutlookFileDrag.sln
 ```
 
-Compile the VSTO add-in in Release configuration. When building for local tests or CI, manifest signing can be disabled, but the resulting manifests are not suitable for a public release.
+For a signed Release build, provide an approved local signing certificate through `ManifestCertificateThumbprint` in the build environment. The repository contains no signing certificate, private key, or fixed certificate thumbprint. Build the x64 add-in and setup first, followed by x86. The x86 setup references the architecture-neutral `stdole.dll` from the x64 Release output; this matches the tested 1.0.13 package.
 
 ## Continuous integration
 
-The GitHub Actions workflow runs the managed compilation target (`Compile`) on a Windows runner. It does not complete the VSTO manifest generation, build MSIs, test Outlook integration, or sign deployment manifests. A passing check confirms managed-source compilation only.
+The GitHub Actions workflow validates both installer project files, compiles managed code without manifest signing, runs regression tests in x86 and x64 processes, and checks the 1.0.13 assembly version. Its installer check parses the complete block structure and verifies the explicit 16-file x86 and 17-file x64 payload lists, source paths, metadata, architecture and MSI upgrade identities. CI does not build MSIs or sign manifests.
 
-The workflow also runs `tools/Test-InstallerConfiguration.ps1`. This read-only check parses both installer projects, verifies block structure and project-output nesting, rejects `ContentFiles`, and checks explicit EasyHook and VSTO manifest payloads for missing or duplicate targets. It also runs at the start of `tools/Validate.ps1`. These configuration checks do not replace building and inspecting the actual MSIs.
-
-Before publishing an MSI:
-
-1. Build the add-in with trusted publisher credentials and verify both signed VSTO manifests.
-2. Build x86 and x64 setup projects using Visual Studio Installer Projects.
-3. Inspect actual MSI ProductVersion, ProductCode, UpgradeCode, PackageCode, file versions, architectures, registry registration, and dependency payloads.
-4. Test a clean install and upgrades from 1.0.11 and v1.0.12-fixed, including unattended installations.
-5. Validate drag-and-drop behavior using classic Outlook 2019 and Microsoft 365, including full messages and attachments.
-6. Run a staged deployment before distributing the new installers.
+The explicit file references in both setup projects are needed for reproducible packaging. The 1.0.13 MSIs were built in Visual Studio and their actual payloads and signed manifests were checked separately. Before publishing future installers, inspect the actual MSIs and test installation and upgrades.
 
 ## Signing certificate
 
-The historical PFX file was removed from the current source tree; it remains available in Git history. Do not use it as a release credential without verifying its provenance. Files in a public Git repository remain accessible in its history even after deletion. If any private key was published, treat that key as potentially exposed and replace/revoke it as appropriate.
+Keep signing certificates outside the repository. Supply only the local certificate thumbprint to the Release build environment; never commit the certificate, private key, password or thumbprint. Verify both generated VSTO manifests and their file hashes before packaging.
 
-Use signing certificates outside the repository and never commit private key files or passwords. Release builds must produce manifests signed with a trusted certificate. The project intentionally contains no fixed `ManifestKeyFile` or `ManifestCertificateThumbprint`; select an approved certificate in the release build environment and verify both generated VSTO manifests. A clean checkout is not configured to produce signed manifests without this step.
+The historical PFX was removed from the current source tree but remains accessible in Git history. Do not reuse it without validating its provenance.
 
-The current dependency set is `log4net` 3.5.0 (`net462`) and EasyHook 2.7.7097. The project and both setup projects reference these identities. Both installers require .NET Framework 4.8.
+The current dependency set is `log4net` 3.5.0 (`net462`) and EasyHook 2.7.7097. Both installers require .NET Framework 4.8.
 
 ## Automated local validation without Outlook registration
 

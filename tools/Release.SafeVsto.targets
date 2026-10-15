@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+    Release-only VSTO manifest generation. The stock VSTO build target also
+    changes certificate trust and Outlook registration. This target recreates
+    its manifest pipeline while omitting all certificate-store and registry
+    mutation tasks.
+  -->
+  <PropertyGroup>
+    <PrepareForRunDependsOn Condition="'$(Configuration)' == 'Release'">CopyFilesToOutputDirectory;CreateSafeVstoManifests</PrepareForRunDependsOn>
+  </PropertyGroup>
+
+  <Target Name="CreateSafeVstoManifests" Condition="'$(Configuration)' == 'Release'">
+    <Error Condition="'$(ManifestCertificateThumbprint)' == ''" Text="A local signing certificate thumbprint is required." />
+    <InitializeDefaultProperties
+      Condition="'$(OfficeApplicationDescription)' == ''"
+      TargetName="$(TargetName)"
+      OfficeApplication="$(OfficeApplication)"
+      ProjectTypeName="$(VSTO_ProjectType)">
+      <Output TaskParameter="OfficeApplicationDescription" PropertyName="OfficeApplicationDescription" />
+    </InitializeDefaultProperties>
+    <VerifyClickOnceSigningSettings SignManifests="$(SignManifests)" />
+    <FindRibbons AssemblyName="$(AbsolutePathToCustomization)" TargetFramework="$(TargetFrameworkVersion)">
+      <Output TaskParameter="RibbonTypes" ItemName="RibbonTypesCollection" />
+    </FindRibbons>
+    <GenerateOfficeAddInManifest
+      Condition="'$(VSTO_ProjectType)' == 'Application'"
+      FriendlyName="$(FriendlyName)"
+      KeyName="$(TargetName)"
+      Description="$(OfficeApplicationDescription)"
+      OfficeApplication="$(OfficeApplication)"
+      FormRegionNamesAndMessageClasses="@(FormRegionNamesAndMessageClassesCollection)"
+      RibbonTypes="@(RibbonTypesCollection)"
+      LoadBehavior="$(LoadBehavior)"
+      TargetFramework="$(TargetFrameworkVersion)">
+      <Output TaskParameter="OutputManifest" ItemName="OutputManifestCollection" />
+    </GenerateOfficeAddInManifest>
+    <PregenerateApplicationManifest
+      OutputPath="$(OutDir)"
+      TargetFileName="$(TargetFileName)"
+      EmbeddedManifestFileName="$(EmbeddedManifestFileName)"
+      InputManifest="@(OutputManifestCollection)"
+      UpdateEnabled="$(UpdateEnabled)"
+      UpdateInterval="$(UpdateInterval)"
+      UpdateIntervalUnits="$(UpdateIntervalUnits)">
+      <Output TaskParameter="EmbeddedManifestFileNameWithPath" ItemName="EmbeddedManifestFileNameWithPathCollection" />
+    </PregenerateApplicationManifest>
+
+    <ItemGroup>
+      <_CopyLocalFalseRefPaths Include="@(ReferencePath)" Condition="'%(ReferencePath.CopyLocal)' == 'false'" />
+      <_CopyLocalFalseRefPathsWithExclusion Include="@(_CopyLocalFalseRefPaths)" Exclude="@(ReferenceCopyLocalPaths);@(_NETStandardLibraryNETFrameworkLib)" />
+      <_SatelliteAssemblies Include="@(IntermediateSatelliteAssembliesWithTargetPath);@(ReferenceSatellitePaths)" />
+      <_DeploymentReferencePaths Include="@(ReferenceCopyLocalPaths)" Condition="'%(Extension)' == '.dll' Or '%(Extension)' == '.exe'">
+        <IsPrimary>true</IsPrimary>
+      </_DeploymentReferencePaths>
+      <_DeploymentReferencePaths Include="@(_CopyLocalFalseRefPathsWithExclusion)" />
+      <_FinalDeploymentReferencePaths Include="@(_DeploymentReferencePaths)" />
+      <WinmdReferences Include="@(_FinalDeploymentReferencePaths)" Condition="'%(_FinalDeploymentReferencePaths.WinMDFile)' == 'true'" />
+      <_ManifestManagedReferences Include="@(_FinalDeploymentReferencePaths);@(ReferenceDependencyPaths);@(_SGenDllsRelatedToCurrentDll);@(SerializationAssembly);@(ReferenceCOMWrappersToCopyLocal)"
+                                  Exclude="@(_SatelliteAssemblies);@(_ReferenceScatterPaths);@(_ExcludedAssembliesFromManifestGeneration);@(WinmdReferences)" />
+    </ItemGroup>
+
+    <ResolveManifestFiles
+      EntryPoint="@(DllEntryPoint)"
+      ManagedAssemblies="@(_ManifestManagedReferences);@(DllEntryPoint)"
+      Files="@(AppConfigWithTargetPath);@(ContentWithTargetPath)"
+      SatelliteAssemblies="@(_SatelliteAssemblies)"
+      TargetCulture="*">
+      <Output TaskParameter="OutputAssemblies" ItemName="DependenciesForGam" />
+      <Output TaskParameter="OutputFiles" ItemName="FilesForGAM" />
+    </ResolveManifestFiles>
+    <GenerateApplicationManifest
+      AssemblyName="$(TargetFileName)"
+      AssemblyVersion="$(PublishVersion)"
+      ConfigFile="@(AppConfigWithTargetPath)"
+      ClrVersion="$(ClrVersion)"
+      Dependencies="@(DependenciesForGam)"
+      Description="$(OfficeApplicationDescription)"
+      Files="@(FilesForGAM)"
+      InputManifest="@(EmbeddedManifestFileNameWithPathCollection)"
+      IsolatedComReferences="@(ResolvedIsolatedComModules)"
+      ManifestType="ClickOnce"
+      MaxTargetPath="$(MaxTargetPath)"
+      OutputManifest="@(ApplicationManifestWithPathCollection)"
+      OSVersion="$(OSVersion)"
+      Platform="$(PlatformTarget)"
+      TargetCulture="*"
+      TargetFrameworkVersion="$(TargetFrameworkVersion)">
+      <Output TaskParameter="OutputManifest" ItemName="FileWrites" />
+    </GenerateApplicationManifest>
+    <Delete Files="@(EmbeddedManifestFileNameWithPathCollection)" Condition="Exists('@(EmbeddedManifestFileNameWithPathCollection)')" />
+    <SignFile
+      CertificateThumbprint="$(ManifestCertificateThumbprint)"
+      SigningTarget="$(OutDir)$(ApplicationManifestFileName)"
+      TimestampUrl="$(ManifestTimestampUrl)"
+      TargetFrameworkVersion="$(TargetFrameworkVersion)" />
+    <CreateItem Include="$(OutDir)$(ApplicationManifestFileName)" AdditionalMetadata="TargetPath=$(ApplicationManifestFileName)">
+      <Output TaskParameter="Include" ItemName="ApplicationManifestWithPathForBuildCollection" />
+    </CreateItem>
+    <GenerateDeploymentManifest
+      EntryPoint="@(ApplicationManifestWithPathForBuildCollection)"
+      AssemblyName="$(DeploymentManifestFileName)"
+      AssemblyVersion="$(PublishVersion)"
+      OutputManifest="@(DeploymentManifestWithPathCollection)"
+      Platform="$(PlatformTarget)"
+      Install="false"
+      TargetFrameworkMoniker="$(TargetFrameworkMoniker)"
+      TargetFrameworkVersion="$(TargetFrameworkVersion)">
+      <Output TaskParameter="OutputManifest" ItemName="FileWrites" />
+    </GenerateDeploymentManifest>
+    <SignFile
+      CertificateThumbprint="$(ManifestCertificateThumbprint)"
+      SigningTarget="$(OutDir)$(DeploymentManifestFileName)"
+      TimestampUrl="$(ManifestTimestampUrl)"
+      TargetFrameworkVersion="$(TargetFrameworkVersion)" />
+  </Target>
+</Project>

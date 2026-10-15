@@ -1,5 +1,21 @@
 # OutlookFileDrag 1.0.13 – Umsetzung und Validierung
 
+**Nachtrag vom 15.10.2026 – Release-Vorbereitung:** Dieser Bericht dokumentiert
+den Entwicklungs- und Teststand vom 14.10.2026. Insbesondere die nachstehenden
+Aussagen „MSIs nicht erstellt“, „VSTO-Signaturen nicht verifiziert“ und
+„Installation nicht getestet“ sind **historische Momentaufnahmen** und seit
+15.10.2026 überholt. Inzwischen wurden die finalen x86-/x64-MSIs mit 16 bzw.
+17 Dateien erfolgreich erstellt und ihre tatsächlichen Inhalte, signierten
+VSTO-Manifeste, Hashes und MSI-Identitäten geprüft. Der Anwender hat die
+Installation beider finalen Installer erfolgreich getestet. Die MSIs sind
+nicht Authenticode-signiert; die VSTO-Manifeste verwenden ein selbstsigniertes,
+neutrales Community-Zertifikat. Umfangreiche Outlook-Kompatibilitäts-,
+Upgrade-, Reparatur- und Unternehmens-Rollout-Tests sind dadurch nicht
+automatisch nachgewiesen. Der aktuelle Status steht in
+[RELIABILITY_AND_RELEASE_VALIDATION.md](RELIABILITY_AND_RELEASE_VALIDATION.md)
+und den [Release Notes](RELEASE_NOTES_1.0.13.md). Die ursprünglichen
+Testprotokolle und historischen Befunde bleiben unten bewusst unverändert.
+
 Stand: 14.10.2026, lokales Windows-Projekt. **Alle fünf beauftragten Befunde sind korrigiert. Die vollständige C#-Quellkompilierung und die Regressionstests sind erfolgreich. Eine Releasefreigabe für Outlook/VSTO/MSI liegt noch nicht vor.**
 
 ## A. Ergebnis und Ausgangszustand

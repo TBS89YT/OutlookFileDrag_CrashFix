@@ -1,9 +1,17 @@
 # Outlook File Drag: reliability audit and release gates
 
-Audit/update date: 2026-10-14. Managed builds and 114 regression cases in each of
-the x86 and x64 Windows processes pass, including native OLE helper tests.
-**Classic Outlook behavior, signed VSTO deployment and MSI installation remain
-untested. These changes are not in the existing v1.0.12-fixed MSI. Do not deploy yet.**
+Audit originally performed: 2026-10-14. **Release status updated: 2026-10-15.**
+Managed builds and 114 regression cases in each of the x86 and x64 Windows
+processes pass, including native OLE helper tests. Since the initial audit,
+the 1.0.13 x86 and x64 MSIs were built, extracted and verified, including
+their architecture-specific DLL hashes, payload files, VSTO manifest
+signatures and MSI metadata. The user reports successful installation tests
+of both final installers. Those results supersede the original **untested
+MSI/VSTO packaging** finding; the published v1.0.12-fixed assets do not
+contain the 1.0.13 fixes. **Broader Outlook interoperability, upgrade,
+repair, silent deployment and enterprise rollout tests are not established
+by these installation tests.** The VSTO manifests use a self-signed
+community-build certificate, and the MSIs are not Authenticode-signed.
 
 The five additional findings (partial exports, descriptor bounds, unsafe export
 paths, enumeration state and large offsets) have been corrected. See the
@@ -47,27 +55,41 @@ Compare a failing and a working **classic Outlook** PC:
 9. Redact subjects, filenames, mail addresses and customer data from logs
    before posting them publicly.
 
-## Release blocking validation (x86 and x64)
+## 1.0.13 release verification (updated 2026-10-15)
 
-- [x] Managed Release/Debug compilation, native/helper regression tests in both
-      process architectures, dependency/version/setup consistency checks.
-- [x] Microsoft analyzers for reliability/security/interoperability; no warnings
-      or errors, four informational suggestions in existing code.
-- [ ] Visual Studio Release build with .NET Framework 4.8, VSTO and VS
-      Installer Projects tooling, zero compilation errors.
-- [ ] Inspect generated MSI and installed files for DLL file version
-      1.0.13.0, correct EasyHook binaries, registration, manifests and
-      trustworthy publishing signature.
-- [ ] Verify distinct updated ProductCodes, preserved UpgradeCodes, unique
-      PackageCodes and product version 1.0.13 in the MSI tables.
-- [ ] Test clean install, 1.0.11 upgrade, 1.0.12-fixed x64 upgrade,
-      silent Intune/SYSTEM install, repair, rollback and uninstall.
-- [ ] Test Outlook 2019 and Microsoft 365 classic, both bitness variants,
-      and at least two Office update channels across working/failing PCs.
-- [ ] Test large/full/multiple messages, attachments, long and Unicode
-      filenames, varied target applications and returned drop effects.
-- [ ] Stress-test long Outlook uptime and drags during the cleanup window.
-- [ ] Pilot a few devices; only then consider a 100+ device deployment.
+- [x] Managed Release/Debug compilation; native/helper regression tests in
+      actual x86 and x64 processes (114 cases per architecture).
+- [x] Microsoft analyzers: no warnings or errors, four informational findings.
+- [x] Visual Studio Release packaging completed: x86 MSI has 16 files; x64
+      MSI has 17 files. Extracted package DLL SHA-256 values match the
+      approved architecture-specific release DLLs.
+- [x] Both VSTO application and deployment manifest signatures verified for
+      each architecture, including file references and hashes. Signatures
+      use a self-signed community-build certificate, not a publicly trusted
+      code-signing identity. The MSIs themselves are unsigned.
+- [x] Inspected the actual MSI files: version 1.0.13, ProductCode/UpgradeCode,
+      target platform, installation location, Outlook registration and
+      included dependencies. No PDB/PFX/private-key files or identifiable
+      local debug paths found in the release packages.
+- [x] User confirmed successful installation tests of both final MSI variants.
+- [x] Local x86/x64 ZIP archives and their SHA-256 checksum manifest verified.
+      These assets have **not yet been published** on GitHub.
+
+## Further compatibility and enterprise rollout checks
+
+The items below are useful before deploying widely. They are **not claimed
+as completed** by the successful packaging and basic installation tests:
+
+- [ ] Exercise both full-message and attachment drag-and-drop in classic
+      Outlook on representative 32-bit and 64-bit installations, including
+      different Outlook versions, Office update channels and destination apps.
+- [ ] Test upgrades from 1.0.11 and v1.0.12-fixed using the **final**
+      installers, and confirm repair, rollback and uninstall behavior.
+- [ ] Test unattended Intune/SYSTEM installation and application-control
+      environments; document handling of self-signed publisher warnings.
+- [ ] Test multiple/large messages, unusual filenames and sustained Outlook
+      uptime where relevant.
+- [ ] Pilot representative devices before a fleet-wide rollout.
 
 Windows Installer version rules:
 https://learn.microsoft.com/en-us/windows/win32/msi/file-versioning-rules
