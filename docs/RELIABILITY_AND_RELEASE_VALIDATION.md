@@ -73,7 +73,7 @@ Compare a failing and a working **classic Outlook** PC:
       local debug paths found in the release packages.
 - [x] User confirmed successful installation tests of both final MSI variants.
 - [x] Local x86/x64 ZIP archives and their SHA-256 checksum manifest verified.
-      These assets have **not yet been published** on GitHub.
+      For current public availability, see the project's GitHub Releases page.
 
 ## Further compatibility and enterprise rollout checks
 
