@@ -27,9 +27,9 @@ Before publishing an MSI:
 
 ## Signing certificate
 
-Do not use the repository's historical PFX artifact as a release credential without verifying its provenance. Files in a public Git repository remain accessible in its history even after deletion. If any private key was published, treat that key as potentially exposed and replace/revoke it as appropriate.
+The historical PFX file was removed from the current source tree; it remains available in Git history. Do not use it as a release credential without verifying its provenance. Files in a public Git repository remain accessible in its history even after deletion. If any private key was published, treat that key as potentially exposed and replace/revoke it as appropriate.
 
-Use signing certificates outside the repository and never commit private key files or passwords. Release builds must produce manifests signed with a trusted certificate.
+Use signing certificates outside the repository and never commit private key files or passwords. Release builds must produce manifests signed with a trusted certificate. The project intentionally contains no fixed `ManifestKeyFile` or `ManifestCertificateThumbprint`; select an approved certificate in the release build environment and verify both generated VSTO manifests. A clean checkout is not configured to produce signed manifests without this step.
 
 The current dependency set is `log4net` 3.5.0 (`net462`) and EasyHook 2.7.7097. The project and both setup projects reference these identities. Both installers require .NET Framework 4.8.
 
